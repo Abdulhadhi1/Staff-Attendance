@@ -14,9 +14,14 @@ app.use(helmet());
 app.use(morgan('dev'));
 
 // Database Connection
-mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log('MongoDB Connected'))
-    .catch(err => console.error('MongoDB Connection Error:', err));
+if (!process.env.MONGO_URI) {
+    console.error('CRITICAL: MONGO_URI environment variable is not defined.');
+    // Do not crash, but API will fail
+} else {
+    mongoose.connect(process.env.MONGO_URI)
+        .then(() => console.log('MongoDB Connected'))
+        .catch(err => console.error('MongoDB Connection Error:', err));
+}
 
 // Routes
 const authRoutes = require('./routes/authRoutes');
@@ -37,18 +42,26 @@ app.use('/api/admin', adminRoutes);
 const fs = require('fs');
 
 // Serve Frontend Static Files (Only if build exists - for local hybrid run)
-const frontendPath = path.join(__dirname, '../frontend/dist');
-if (fs.existsSync(frontendPath)) {
-    app.use(express.static(frontendPath));
+// Wrap in try-catch for Vercel/Serverless safety
+try {
+    const frontendPath = path.join(__dirname, '../frontend/dist');
+    if (fs.existsSync(frontendPath)) {
+        app.use(express.static(frontendPath));
 
-    // Handle React Routing
-    app.get(/.*/, (req, res) => {
-        res.sendFile(path.join(frontendPath, 'index.html'));
-    });
-} else {
-    // Fallback for Backend-only deployment
+        // Handle React Routing
+        app.get(/.*/, (req, res) => {
+            res.sendFile(path.join(frontendPath, 'index.html'));
+        });
+    } else {
+        // Fallback for Backend-only deployment
+        app.get('/', (req, res) => {
+            res.send('Staff Attendance API is running (Frontend not found) - Mode: ' + process.env.NODE_ENV);
+        });
+    }
+} catch (error) {
+    console.error('Error checking frontend path:', error);
     app.get('/', (req, res) => {
-        res.send('Staff Attendance API is running (Frontend not found)');
+        res.send('Staff Attendance API is running (Error checking frontend)');
     });
 }
 
