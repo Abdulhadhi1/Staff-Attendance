@@ -27,9 +27,30 @@ app.use('/api/auth', authRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/admin', adminRoutes);
 
-app.get('/', (req, res) => {
-    res.send('Staff Attendance API is running');
-});
+const path = require('path');
+
+// ... routes ...
+app.use('/api/auth', authRoutes);
+app.use('/api/attendance', attendanceRoutes);
+app.use('/api/admin', adminRoutes);
+
+const fs = require('fs');
+
+// Serve Frontend Static Files (Only if build exists - for local hybrid run)
+const frontendPath = path.join(__dirname, '../frontend/dist');
+if (fs.existsSync(frontendPath)) {
+    app.use(express.static(frontendPath));
+
+    // Handle React Routing
+    app.get(/.*/, (req, res) => {
+        res.sendFile(path.join(frontendPath, 'index.html'));
+    });
+} else {
+    // Fallback for Backend-only deployment
+    app.get('/', (req, res) => {
+        res.send('Staff Attendance API is running (Frontend not found)');
+    });
+}
 
 // Start Server
 const PORT = process.env.PORT || 5000;
